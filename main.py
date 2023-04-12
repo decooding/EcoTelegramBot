@@ -5,6 +5,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from kb import Main_keyboard, Color_keyboard, Digit_keyboard
 from aiogram.dispatcher import Dispatcher
+from geopy.geocoders import Nominatim
+
 
 API_TOKEN = "6232142718:AAGtjHPrJJPfAWGztHk-RzwKiTeMWHH4xFc"
 
@@ -195,32 +197,47 @@ API_Yan = "408bfa84-ab2e-4934-8e21-e2cc719dc1c7"
 @dp.message_handler(
     lambda message: message.text == "📍 Узнать ближайшие пункты приема вторсырья"
 )
+async def handle_recycling_points(message: types.Message):
+    response_message = "Введите команду /rec и поделитесь местоположением"
+    await message.answer(response_message)
+
+
+@dp.message_handler(commands=["rec"])
 async def handle_nearest_command(message: types.Message):
-    location = message.location
-    if location is None:
-        await message.reply("Please share your location to use this command")
+    location_text = message.reply_to_message.text
+    location_url = (
+        location_text.split("\n")[1] if len(location_text.split("\n")) >= 2 else None
+    )
+    if not location_url:
+        await message.reply(
+            "Для использования этой команды, ответьте на сообщение, содержащее URL-адрес местоположения"
+        )
         return
 
-    latitude = location.latitude
-    longitude = location.longitude
+    geolocator = Nominatim(user_agent="my-application")
+    location = geolocator.geocode(location_url)
+
+    if not location:
+        await message.reply("Не удается найти местоположение URL")
+        return
+
+    latitude, longitude = location.latitude, location.longitude
 
     async with aiohttp.ClientSession() as session:
         url = f"https://search-maps.yandex.ru/v1/?apikey={API_Yan}&type=biz&text=прием макулатуры&ll={longitude},{latitude}"
         async with session.get(url) as resp:
             response_json = await resp.json()
-
             points = response_json["features"]
-            if len(points) == 0:
-                await message.reply("There are no recycling points nearby")
+            if not points:
+                await message.reply("Рядом нет пунктов приема вторсырья")
             else:
                 result = ""
                 for point in points:
                     name = point["properties"]["name"]
                     address = point["properties"]["address"]
                     distance = int(point["properties"]["Distance"])
-                    result += f"{name} ({distance} meters)\n{address}\n"
-
-                await message.reply(result)
+                    result += f"{name}({distance} метров)\n{address}\n"
+                    await message.reply(result)
 
 
 if __name__ == "__main__":
