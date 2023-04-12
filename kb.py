@@ -3,8 +3,10 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 Main_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 buttons = ["♻️ Узнать цветовой маркер отходов", "🔢 Коды переработки"]
 Main_keyboard.add(*buttons)
-Main_keyboard.add(KeyboardButton(text="❔ Задать вопрос экспертам")).add(KeyboardButton(text="Узнать качества воздуха"))
-Main_keyboard.add(KeyboardButton(text="📍 Узнать ближайшие пункты приема вторсырья"))
+Main_keyboard.add(KeyboardButton(text="❔ Задать вопрос экспертам")).add(
+    KeyboardButton(text="Узнать качества воздуха")
+)
+Main_keyboard.add(KeyboardButton(text="📍 Поиск пунктов приема вторсырья в городе"))
 Main_keyboard.add(KeyboardButton(text="💡 Советы")).add(KeyboardButton(text="💡 Советы"))
 Color_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 buttons = ["🟦", "🟩", "🟥", "🟨", "🟪", "⬜"]
