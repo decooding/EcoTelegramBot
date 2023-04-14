@@ -7,7 +7,7 @@ Main_keyboard.add(KeyboardButton(text="❔ Задать вопрос экспе�
     KeyboardButton(text="Узнать качества воздуха")
 )
 Main_keyboard.add(KeyboardButton(text="📍 Поиск пунктов приема вторсырья в городе"))
-Main_keyboard.add(KeyboardButton(text="💡 Советы")).add(KeyboardButton(text="💡 Советы"))
+Main_keyboard.add(KeyboardButton(text="💡 Советы"))
 Color_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 buttons = ["🟦", "🟩", "🟥", "🟨", "🟪", "⬜"]
 Color_keyboard.add(*buttons).add(KeyboardButton(text="🔄 Вернуться в главное меню"))
