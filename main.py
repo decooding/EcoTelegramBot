@@ -195,6 +195,36 @@ async def cmd_air_quality(message: types.Message):
 API_Yan = "408bfa84-ab2e-4934-8e21-e2cc719dc1c7"
 
 
+async def find_recycling_points(city_name: str) -> str:
+    geolocator = Nominatim(user_agent="Eco_telegramm_bot")
+    try:
+        location = geolocator.geocode(city_name, exactly_one=True, timeout=10)
+        if location is None:
+            return f"Could not find location for {city_name}"
+    except Exception as e:
+        return f"Error: {e}"
+
+    latitude = location.latitude
+    longitude = location.longitude
+
+    async with aiohttp.ClientSession() as session:
+        url = f"https://search-maps.yandex.ru/v1/?apikey={API_Yan}&type=biz&text=прием макулатуры&ll={longitude},{latitude}"
+        async with session.get(url) as resp:
+            response_json = await resp.json()
+            points = response_json.get("features")
+            if not points:
+                return f"No recycling points found in {city_name}"
+            else:
+                result = ""
+                for point in points:
+                    name = point["properties"]["name"]
+                    address = point["properties"]["address"]
+                    distance = int(point["properties"]["Distance"])
+                    result += f"{name} ({distance} meters)\n{address}\n"
+
+                return result
+
+
 @dp.message_handler(regexp="📍 Поиск пунктов приема вторсырья в городе")
 async def handle_recycling_command(message: types.Message):
     response_message = "Например: /rec Astana"
@@ -204,39 +234,8 @@ async def handle_recycling_command(message: types.Message):
 @dp.message_handler(commands=["rec"])
 async def handle_recycling_command(message: types.Message):
     city_name = message.text.split(" ", 1)[1]
-    geolocator = Nominatim(user_agent="Eco_telegramm_bot")
-    try:
-        location = geolocator.geocode(city_name, exactly_one=True, timeout=10)
-        if location is None:
-            await message.reply(f"Could not find location for {city_name}")
-            return
-    except Exception as e:
-        await message.reply(f"Error: {e}")
-        return
-
-    latitude = location.latitude
-    longitude = location.longitude
-
-    async with aiohttp.ClientSession() as session:
-        url = f"https://search-maps.yandex.ru/v1/?apikey={API_Yan}&type=biz&text=прием макулатуры&ll={longitude},{latitude}"
-        async with session.get(url) as resp:
-            response_json = await resp.json()
-            if "features" not in response_json:
-                await message.reply(f"No recycling points found in {city_name}")
-                return
-            points = response_json["features"]
-            if len(points) == 0:
-                await message.reply(f"No recycling points found in {city_name}")
-            else:
-                result = ""
-                for point in points:
-                    name = point["properties"]["name"]
-                    address = point["properties"]["address"]
-                    distance = int(point["properties"]["Distance"])
-                    result += f"{name} ({distance} meters)\n{address}\n"
-
-                await message.reply(result)
-                print(response_json)
+    response_message = await find_recycling_points(city_name)
+    await message.answer(response_message)
 
 
 if __name__ == "__main__":
