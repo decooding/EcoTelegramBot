@@ -1,11 +1,8 @@
-import os, aiohttp, telegram, requests, logging
+import requests, logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from kb import Main_keyboard, Color_keyboard, Digit_keyboard
 from aiogram.dispatcher import Dispatcher
-from geopy.geocoders import Nominatim
-from aiogram.types import InputFile
-
 
 API_TOKEN = "6232142718:AAGtjHPrJJPfAWGztHk-RzwKiTeMWHH4xFc"
 
@@ -29,14 +26,16 @@ async def back_menu(message: types.Message):
     await message.answer("Назад в главное меню", reply_markup=Main_keyboard)
     await message.delete()
 
+
 color_map = {
     "🟦": {"name": "Стекло", "image": "color_img/2.jpeg"},
     "🟩": {"name": "Органика", "image": "color_img/6.jpeg"},
     "🟥": {"name": "Пластик", "image": "color_img/5.jpeg"},
     "🟨": {"name": "Бумага", "image": "color_img/4.jpeg"},
     "🟪": {"name": "Металл", "image": "color_img/1.jpeg"},
-    "⬜": {"name": "Батарейки", "image": "color_img/3.jpeg"}
+    "⬜": {"name": "Батарейки", "image": "color_img/3.jpeg"},
 }
+
 
 @dp.message_handler(lambda message: message.text == "♻️ Узнать цветовой маркер отходов")
 async def Marker(message: types.Message):
@@ -49,12 +48,11 @@ async def handle_color(message: types.Message):
     chat_id = message.chat.id
 
     color = color_map[message.text]
-    image_path = color['image']
-    name = color['name']
-    await bot.send_photo(chat_id=chat_id, photo=open(image_path, 'rb'))
+    image_path = color["image"]
+    name = color["name"]
+    await bot.send_photo(chat_id=chat_id, photo=open(image_path, "rb"))
     await bot.send_message(chat_id=chat_id, text=name)
     await message.delete()
-    
 
 
 @dp.message_handler(lambda message: message.text == "💡 Советы")
@@ -79,8 +77,8 @@ async def send_random_value(message: types.Message):
 
 @dp.message_handler(commands=["q"])
 async def send_q_expert(message: types.Message):
-    question = message.text.split(maxsplit=1)
-    response = f"Вопрос от пользователя {message.from_user.full_name} : {question}"
+    command, question = message.text.split(maxsplit=1)
+    response = f"Вопрос от пользователя {f'@{message.from_user.username}' or message.from_user.id}: {question}"
     await bot.send_message("@ecologisticsexpert", response)
     await message.answer("Ваш вопрос отправлен эксперту, ожидайте ответа.")
 
@@ -132,31 +130,23 @@ async def handle_digit(message: types.Message):
     chat_id = message.chat.id
 
     digit = digit_map[message.text]
-    image_path = digit['image']
-    description = digit['description']
-    await bot.send_photo(chat_id=chat_id, photo=open(image_path, 'rb'))
+    image_path = digit["image"]
+    description = digit["description"]
+    await bot.send_photo(chat_id=chat_id, photo=open(image_path, "rb"))
     await bot.send_message(chat_id=chat_id, text=description)
     await message.delete()
-
 
 
 API_QA = "7e9f1b481689e9bb85a2119fe75ec481119a9ced"
 
 
 def get_air_quality(city):
-    # API endpoint URL
     url = f"https://api.waqi.info/feed/{city}/?token={API_QA}"
-    # Make a request to the API
     response = requests.get(url)
-    # Get the JSON response
     data = response.json()
-    # Check if the request was successful
     if response.status_code == 200:
-        # Get the AQI (air quality index)
         aqi = data["data"]["aqi"]
-        # Get the pollutant with the highest concentration
         dominant_pollutant = data["data"]["dominentpol"]
-        # Construct a message based on the AQI value
         if aqi <= 50:
             message = f"Качество воздуха в городе {city} хорошее (AQI {aqi}). Наслаждайтесь своим днем!"
         elif aqi <= 100:
@@ -169,14 +159,13 @@ def get_air_quality(city):
             message = f"Качество воздуха в городе {city} очень небезопасное (AQI {aqi}). Оставайтесь в помещении и избегайте любых уличных активностей."
         else:
             message = f"Качество воздуха в городе {city} опасное (AQI {aqi}). Пожалуйста, оставайтесь в помещении."
-            # Добавление информации о доминирующем загрязнителе в сообщение
             message += f"\n\nДоминирующим загрязнителем является {dominant_pollutant}."
     else:
         message = f"К сожалению, мы не смогли получить данные о качестве воздуха для города {city}."
     return message
 
 
-@dp.message_handler(lambda message: message.text == "Узнать качества воздуха")
+@dp.message_handler(lambda message: message.text == "🌀 Узнать качества воздуха")
 async def msg_air_quality(message: types.Message):
     response_message = (
         "Ведите команду и укажите город на латинице для проверки качества воздуха.\n"
@@ -196,57 +185,35 @@ async def cmd_air_quality(message: types.Message):
         await message.answer(response_message)
 
 
-API_Yan = "408bfa84-ab2e-4934-8e21-e2cc719dc1c7"
-
-async def find_recycling_points(city_name):
-    async with aiohttp.ClientSession() as session:
-        # Получение координат города
-        geocode_url = f"https://geocode-maps.yandex.ru/1.x/?apikey={API_Yan}&format=json&geocode={city_name}"
-        async with session.get(geocode_url) as geocode_resp:
-            geocode_json = await geocode_resp.json()
-            geo_object = geocode_json["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
-            coordinates = geo_object["Point"]["pos"].split()
-            longitude, latitude = coordinates
-
-        # Формирование запроса к сервису Яндекс.Карт для поиска ближайших пунктов приема вторсырья
-        search_url = f"https://search-maps.yandex.ru/v1/?apikey={API_Yan}&text=пункт приема вторсырья&lang=ru_RU&ll={longitude},{latitude}&type=biz&results=10&spn=0.03,0.03"
-
-        async with session.get(search_url) as search_resp:
-            search_json = await search_resp.json()
-            search_points = search_json.get("features")
-
-            if not search_points:
-                return f"No recycling points found in {city_name}"
-            else:
-                result = ""
-                for point in search_points:
-                    name = point["properties"]["name"]
-                    address = point["properties"]["address"]
-                    distance = int(point["properties"]["Distance"])
-                    result += f"{name} ({distance} meters)\n{address}\n"
-
-                return result
+subscribers = []
 
 
+@dp.message_handler(lambda message: message.text == "📨 Подписаться на рассылку")
+async def subscribe(message: types.Message):
+    if message.from_user.id not in subscribers:
+        subscribers.append(message.from_user.id)
+        await message.answer("Вы успешно подписались на рассылку.")
+    else:
+        subscribers.remove(message.from_user.id)
+        await message.answer("Вы успешно отписались от рассылки.")
+    await message.delete()
 
-@dp.message_handler(regexp="📍 Поиск пунктов приема вторсырья в городе")
-async def handle_recycling_command(message: types.Message):
-    response_message = "Например: /rec Astana"
-    await message.answer(response_message)
+
+async def send_to_subscribers(message: str):
+    for subscriber in subscribers:
+        try:
+            await bot.send_message(subscriber, message)
+        except:
+            pass
 
 
-@dp.message_handler(commands=["rec"])
-async def handle_recycling_points(message: types.Message):
-    city_name = message.text.split()[1]
-    result = await find_recycling_points(city_name)
-    await message.answer(result)
+@dp.message_handler(commands=["all"])
+async def start_handler(message: types.Message):
+    user_id = message.from_user.id
+    command, message.text = message.text.split(maxsplit=1)
 
+    await bot.send_message(chat_id=user_id, text=message.text)
 
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
-
-# @dp.message_handler(lambda message: message.text == "Узнать маркировки")
-# async def Marker(message: types.Message):
-#     response = f''
-#     await message.answer(response)
